@@ -3,7 +3,12 @@ import {
   CSS2DObject,
 } from "three/addons/renderers/CSS2DRenderer.js";
 import type { CatalogBody } from "./catalog";
-import { bodyRadiusUnits } from "./scaling";
+import {
+  bodyRadiusUnits,
+  eclipticKmToScene,
+  moonWorldPosition,
+  type Vec3,
+} from "./scaling";
 import { materialSpecFor } from "./material";
 
 export interface SolarSystem {
@@ -116,6 +121,33 @@ export function buildSolarSystem(catalog: CatalogBody): SolarSystem {
   addChildren(catalog);
 
   return { group, meshes, labels, parents, bodies };
+}
+
+/**
+ * Closed orbit loop for a body from its parent-centric period samples.
+ * Planet orbits use true heliocentric coordinates centered at the origin;
+ * moon orbits are built in parent-local space with the moon-orbit boost, so
+ * the caller can position the loop at the parent each frame.
+ */
+export function buildOrbitLine(
+  points: Vec3[],
+  color: string,
+  isMoon: boolean,
+  boost: number,
+): THREE.LineLoop {
+  const verts = points.map((p) => {
+    const [x, y, z] = isMoon
+      ? moonWorldPosition([0, 0, 0], p, boost)
+      : eclipticKmToScene(p);
+    return new THREE.Vector3(x, y, z);
+  });
+  const geometry = new THREE.BufferGeometry().setFromPoints(verts);
+  const material = new THREE.LineBasicMaterial({
+    color,
+    transparent: true,
+    opacity: 0.28,
+  });
+  return new THREE.LineLoop(geometry, material);
 }
 
 /** Procedural starfield: points on a large sphere that follows the camera,

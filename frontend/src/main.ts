@@ -4,7 +4,8 @@ import { CSS2DRenderer } from "three/addons/renderers/CSS2DRenderer.js";
 import { formatBackendStatus, type HealthPayload } from "./backendStatus";
 import { fetchCatalog, type CatalogBody } from "./catalog";
 import { flattenCatalog, renderBodyTree } from "./bodyTree";
-import { buildSolarSystem, buildStarfield } from "./scene";
+import { buildOrbitLine, buildSolarSystem, buildStarfield } from "./scene";
+import { OrbitCache, type OrbitLoop } from "./orbits";
 import {
   bodyRadiusUnits,
   eclipticKmToScene,
@@ -105,6 +106,13 @@ const store = new TrajectoryStore((startMs, endMs) => {
   const start = encodeURIComponent(new Date(startMs).toISOString());
   const end = encodeURIComponent(new Date(endMs).toISOString());
   return getJson<TrajectoryPayload>(`/api/trajectories?start=${start}&end=${end}`);
+});
+
+const orbitCache = new OrbitCache((names) => {
+  const q = encodeURIComponent(names.join(","));
+  return getJson<{ bodies: Record<string, OrbitLoop> }>(
+    `/api/orbits?bodies=${q}`,
+  ).then((r) => r.bodies);
 });
 
 function applySpeed() {
@@ -238,7 +246,10 @@ async function boot() {
           if (mesh) mesh.visible = visible;
           const label = system.labels.get(name);
           if (label) label.visible = visible;
+          const line = orbitLines.get(name);
+          if (line) line.visible = visible;
         }
+        if (visible) void loadOrbits(names); // build loops on first reveal
       },
       onFocus: focusBody,
     }),
@@ -249,6 +260,38 @@ async function boot() {
     (name, t) => store.getPositionAt(name, t),
     clock.now(),
   );
+
+  // Orbit lines: one closed loop per body, fetched once and cached. Planet
+  // loops sit at the origin; moon loops ride their parent (positioned below).
+  const orbitLines = new Map<string, THREE.LineLoop>();
+  const addOrbitLines = (fresh: Map<string, OrbitLoop>): void => {
+    for (const [name, loop] of fresh) {
+      const body = system.bodies.get(name);
+      if (!body) continue;
+      const isMoon = loop.parent !== "sol";
+      const line = buildOrbitLine(
+        loop.points,
+        body.color,
+        isMoon,
+        boosts.get(loop.parent) ?? 1,
+      );
+      line.visible = system.meshes.get(name)?.visible ?? false;
+      system.group.add(line);
+      orbitLines.set(name, line);
+    }
+  };
+  const loadOrbits = async (names: string[]): Promise<void> => {
+    try {
+      addOrbitLines(await orbitCache.load(names));
+    } catch {
+      /* orbit lines are non-essential; ignore fetch failures */
+    }
+  };
+  // Fetch loops for everything visible by default (planets + major moons).
+  const initialOrbits = [...system.meshes.keys()].filter(
+    (n) => n !== "sol" && system.meshes.get(n)!.visible,
+  );
+  void loadOrbits(initialOrbits);
 
   // Parents before children, so moon composition reads settled positions.
   const updateOrder = flattenCatalog(catalog)
@@ -286,6 +329,15 @@ async function boot() {
             boosts.get(parent) ?? 1,
           ),
         );
+      }
+    }
+
+    // Moon orbit loops ride their parent planet; planet loops stay at origin.
+    for (const [name, line] of orbitLines) {
+      const parent = system.parents.get(name);
+      if (parent && parent !== "sol") {
+        const pm = system.meshes.get(parent);
+        if (pm) line.position.copy(pm.position);
       }
     }
 
