@@ -1,3 +1,5 @@
+import { getJson } from "./http";
+
 export interface CatalogBody {
   name: string;
   display_name: string;
@@ -11,9 +13,5 @@ export interface CatalogBody {
 }
 
 export async function fetchCatalog(): Promise<CatalogBody> {
-  const response = await fetch("/api/catalog");
-  if (!response.ok) {
-    throw new Error(`catalog request failed: HTTP ${response.status}`);
-  }
-  return response.json() as Promise<CatalogBody>;
+  return getJson<CatalogBody>("/api/catalog");
 }
