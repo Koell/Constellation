@@ -12,7 +12,7 @@ The following files are 2k equirectangular maps from Solar System Scope:
 
 | File          | Body    | Notes                              |
 | ------------- | ------- | ---------------------------------- |
-| `sun.jpg`     | Sun     |                                    |
+| `sol.jpg`     | Sun     | catalog body name is `sol`         |
 | `mercury.jpg` | Mercury |                                    |
 | `venus.jpg`   | Venus   | atmosphere map                     |
 | `earth.jpg`   | Earth   | daymap                             |

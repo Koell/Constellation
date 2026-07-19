@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+import { CSS2DRenderer } from "three/addons/renderers/CSS2DRenderer.js";
 import { formatBackendStatus, type HealthPayload } from "./backendStatus";
 import { fetchCatalog, type CatalogBody } from "./catalog";
 import { flattenCatalog, renderBodyTree } from "./bodyTree";
@@ -11,6 +12,7 @@ import {
   moonWorldPosition,
   type Vec3,
 } from "./scaling";
+import { deriveTarget, framingDistance, SmoothTarget } from "./focus";
 import { SimClock } from "./simClock";
 import { TrajectoryStore, type TrajectoryPayload } from "./trajectoryStore";
 import { getJson } from "./http";
@@ -24,6 +26,7 @@ const speedSelect = document.getElementById("speed") as HTMLSelectElement;
 const scrubInput = document.getElementById("scrub") as HTMLInputElement;
 const dateJumpInput = document.getElementById("date-jump") as HTMLInputElement;
 const nowBtn = document.getElementById("now-btn") as HTMLButtonElement;
+const overviewBtn = document.getElementById("overview-btn") as HTMLButtonElement;
 const simDateEl = document.getElementById("sim-date")!;
 const creditsBtn = document.getElementById("credits-btn") as HTMLButtonElement;
 const credits = document.getElementById("credits")!;
@@ -50,6 +53,15 @@ renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.setPixelRatio(window.devicePixelRatio);
 container.appendChild(renderer.domElement);
 
+// DOM overlay for camera-facing labels; only the labels catch pointer events.
+const labelRenderer = new CSS2DRenderer();
+labelRenderer.setSize(window.innerWidth, window.innerHeight);
+labelRenderer.domElement.style.position = "absolute";
+labelRenderer.domElement.style.top = "0";
+labelRenderer.domElement.style.left = "0";
+labelRenderer.domElement.style.pointerEvents = "none";
+container.appendChild(labelRenderer.domElement);
+
 const controls = new OrbitControls(camera, renderer.domElement);
 controls.enableDamping = true;
 
@@ -74,7 +86,15 @@ window.addEventListener("resize", () => {
   camera.aspect = window.innerWidth / window.innerHeight;
   camera.updateProjectionMatrix();
   renderer.setSize(window.innerWidth, window.innerHeight);
+  labelRenderer.setSize(window.innerWidth, window.innerHeight);
 });
+
+// --- camera focus / follow -------------------------------------------------
+
+const OVERVIEW_DISTANCE = 420;
+let focused: string | null = null;
+const pivot = new SmoothTarget([0, 0, 0]);
+let desiredDistance: number | null = null;
 
 // --- simulation time -------------------------------------------------------
 
@@ -167,6 +187,48 @@ async function boot() {
   const system = buildSolarSystem(catalog);
   scene.add(system.group);
 
+  // Base rendered radius per body — used to frame it when focused.
+  const baseRadius = new Map<string, number>();
+  for (const [name, body] of system.bodies) {
+    baseRadius.set(name, bodyRadiusUnits(body.radius_km, body.type === "star"));
+  }
+
+  const focusBody = (name: string): void => {
+    if (!system.meshes.has(name)) return;
+    focused = name;
+    desiredDistance = framingDistance(baseRadius.get(name) ?? 1);
+  };
+  const overview = (): void => {
+    focused = null;
+    desiredDistance = OVERVIEW_DISTANCE;
+  };
+  overviewBtn.addEventListener("click", overview);
+
+  // Clicking a label focuses its body.
+  for (const [name, label] of system.labels) {
+    (label.element as HTMLElement).addEventListener("click", () => focusBody(name));
+  }
+
+  // Click (not drag) on the canvas focuses the body under the cursor.
+  const raycaster = new THREE.Raycaster();
+  const pointerNDC = new THREE.Vector2();
+  let downPos: { x: number; y: number } | null = null;
+  renderer.domElement.addEventListener("pointerdown", (e) => {
+    downPos = { x: e.clientX, y: e.clientY };
+  });
+  renderer.domElement.addEventListener("pointerup", (e) => {
+    const d = downPos;
+    downPos = null;
+    if (!d || Math.hypot(e.clientX - d.x, e.clientY - d.y) > 5) return;
+    const rect = renderer.domElement.getBoundingClientRect();
+    pointerNDC.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+    pointerNDC.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+    raycaster.setFromCamera(pointerNDC, camera);
+    const visible = [...system.meshes.values()].filter((m) => m.visible);
+    const hits = raycaster.intersectObjects(visible, false);
+    if (hits.length) focusBody(hits[0].object.name);
+  });
+
   panelBody.replaceChildren(
     renderBodyTree(catalog, {
       isVisible: (name) => system.meshes.get(name)?.visible ?? false,
@@ -174,8 +236,11 @@ async function boot() {
         for (const name of names) {
           const mesh = system.meshes.get(name);
           if (mesh) mesh.visible = visible;
+          const label = system.labels.get(name);
+          if (label) label.visible = visible;
         }
       },
+      onFocus: focusBody,
     }),
   );
 
@@ -189,6 +254,11 @@ async function boot() {
   const updateOrder = flattenCatalog(catalog)
     .filter((b) => b.name !== "sol")
     .map((b) => b.name);
+
+  const worldPositionOf = (name: string): Vec3 | null => {
+    const m = system.meshes.get(name);
+    return m ? (m.position.toArray() as Vec3) : null;
+  };
 
   let lastReal: number | null = null;
   renderer.setAnimationLoop((t) => {
@@ -219,9 +289,29 @@ async function boot() {
       }
     }
 
+    // Ease the pivot to the focused body and translate the camera rig with
+    // it (follow), then dolly toward the framing distance after a focus change.
+    const target = deriveTarget(focused, worldPositionOf);
+    pivot.setDesired(target);
+    const [tx, ty, tz] = pivot.update(delta);
+    camera.position.x += tx - controls.target.x;
+    camera.position.y += ty - controls.target.y;
+    camera.position.z += tz - controls.target.z;
+    controls.target.set(tx, ty, tz);
+
+    if (desiredDistance !== null) {
+      const offset = camera.position.clone().sub(controls.target);
+      const steps = delta > 0 ? delta / (1000 / 60) : 0;
+      const alpha = 1 - Math.pow(1 - 0.12, steps);
+      const newDist = offset.length() + (desiredDistance - offset.length()) * alpha;
+      camera.position.copy(controls.target).add(offset.setLength(newDist));
+      if (Math.abs(newDist - desiredDistance) < 0.5) desiredDistance = null;
+    }
+
     starfield.position.copy(camera.position);
     simDateEl.textContent = `${dateFormat.format(simMs)} UTC`;
     controls.update();
+    labelRenderer.render(scene, camera);
     renderer.render(scene, camera);
   });
 }

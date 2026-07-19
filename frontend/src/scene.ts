@@ -1,4 +1,7 @@
 import * as THREE from "three";
+import {
+  CSS2DObject,
+} from "three/addons/renderers/CSS2DRenderer.js";
 import type { CatalogBody } from "./catalog";
 import { bodyRadiusUnits } from "./scaling";
 import { materialSpecFor } from "./material";
@@ -6,8 +9,22 @@ import { materialSpecFor } from "./material";
 export interface SolarSystem {
   group: THREE.Group;
   meshes: Map<string, THREE.Mesh>;
+  labels: Map<string, CSS2DObject>;
   parents: Map<string, string>;
   bodies: Map<string, CatalogBody>;
+}
+
+/** Camera-facing DOM label for a body, added as a child of its mesh so it
+ * tracks position and inherits visibility. The element is clickable (focus). */
+function makeLabel(body: CatalogBody, radiusUnits: number): CSS2DObject {
+  const el = document.createElement("div");
+  el.className = "label";
+  el.textContent = body.display_name;
+  el.dataset.body = body.name;
+  const label = new CSS2DObject(el);
+  label.position.set(0, radiusUnits * 1.4 + 0.5, 0); // just above the body
+  label.center.set(0.5, 1);
+  return label;
 }
 
 const textureLoader = new THREE.TextureLoader();
@@ -58,33 +75,39 @@ function applyTextureWhenReady(
 export function buildSolarSystem(catalog: CatalogBody): SolarSystem {
   const group = new THREE.Group();
   const meshes = new Map<string, THREE.Mesh>();
+  const labels = new Map<string, CSS2DObject>();
   const parents = new Map<string, string>();
   const bodies = new Map<string, CatalogBody>();
 
+  const sunRadius = bodyRadiusUnits(catalog.radius_km, true);
   const sun = new THREE.Mesh(
-    new THREE.SphereGeometry(bodyRadiusUnits(catalog.radius_km, true), 64, 32),
+    new THREE.SphereGeometry(sunRadius, 64, 32),
     surfaceMaterial(catalog),
   );
   sun.name = catalog.name;
+  const sunLabel = makeLabel(catalog, sunRadius);
+  sun.add(sunLabel);
   group.add(sun);
   meshes.set(catalog.name, sun);
+  labels.set(catalog.name, sunLabel);
   bodies.set(catalog.name, catalog);
 
   const addChildren = (parent: CatalogBody) => {
     for (const body of parent.orbitals) {
       const isMoon = body.type === "moon";
+      const radius = bodyRadiusUnits(body.radius_km);
       const mesh = new THREE.Mesh(
-        new THREE.SphereGeometry(
-          bodyRadiusUnits(body.radius_km),
-          isMoon ? 24 : 48,
-          isMoon ? 12 : 24,
-        ),
+        new THREE.SphereGeometry(radius, isMoon ? 24 : 48, isMoon ? 12 : 24),
         surfaceMaterial(body),
       );
       mesh.name = body.name;
       mesh.visible = body.default_visible;
+      const label = makeLabel(body, radius);
+      label.visible = body.default_visible;
+      mesh.add(label);
       group.add(mesh);
       meshes.set(body.name, mesh);
+      labels.set(body.name, label);
       parents.set(body.name, parent.name);
       bodies.set(body.name, body);
       addChildren(body);
@@ -92,7 +115,7 @@ export function buildSolarSystem(catalog: CatalogBody): SolarSystem {
   };
   addChildren(catalog);
 
-  return { group, meshes, parents, bodies };
+  return { group, meshes, labels, parents, bodies };
 }
 
 /** Procedural starfield: points on a large sphere that follows the camera,

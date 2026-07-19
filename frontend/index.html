@@ -61,6 +61,35 @@
       #view-options label {
         cursor: pointer;
       }
+      #view-options button {
+        margin-left: 10px;
+        background: #1c2030;
+        color: #ddd;
+        border: 1px solid #3a3f52;
+        border-radius: 6px;
+        padding: 2px 8px;
+        font-size: 12px;
+        cursor: pointer;
+      }
+      .body-name {
+        cursor: pointer;
+      }
+      .body-name:hover {
+        color: #6fb0e8;
+        text-decoration: underline;
+      }
+      .label {
+        color: #cdd6e6;
+        font: 12px system-ui, sans-serif;
+        text-shadow: 0 0 3px #000, 0 0 3px #000;
+        pointer-events: auto;
+        cursor: pointer;
+        white-space: nowrap;
+        user-select: none;
+      }
+      .label:hover {
+        color: #fff;
+      }
       #time-controls {
         position: fixed;
         bottom: 12px;
@@ -158,6 +187,7 @@
       <h1>Constellation</h1>
       <div id="view-options">
         <label><input type="checkbox" id="toggle-stars" checked /> Stars</label>
+        <button id="overview-btn" title="return to the Sun-centered overview">⌂ Overview</button>
       </div>
       <div id="panel-body">loading catalog…</div>
     </div>

@@ -5,7 +5,7 @@ from importlib.metadata import version
 from fastapi import FastAPI, HTTPException
 
 from catalog import load_catalog, load_metadata
-from ephemeris import parse_utc, sample_window
+from ephemeris import orbit_loops, parse_utc, sample_window
 
 app = FastAPI(title="Constellation API")
 
@@ -43,3 +43,18 @@ def trajectories(start: str, end: str) -> dict:
     if end_dt < start_dt:
         raise HTTPException(status_code=400, detail="window end precedes start")
     return sample_window(start_dt, end_dt, PERIODS)
+
+
+@app.get("/api/orbits")
+def orbits(bodies: str | None = None) -> dict:
+    """Closed orbit loops. `bodies` is an optional comma-separated subset;
+    omitted returns every orbiting body (slower)."""
+    if bodies is None:
+        selected = PERIODS
+    else:
+        names = [n for n in bodies.split(",") if n]
+        unknown = [n for n in names if n not in PERIODS]
+        if unknown:
+            raise HTTPException(status_code=400, detail=f"unknown bodies: {unknown}")
+        selected = {n: PERIODS[n] for n in names}
+    return {"bodies": orbit_loops(selected)}

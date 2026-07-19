@@ -11,11 +11,15 @@ axes, planets heliocentric and moons planet-centric. Times are Unix epoch
 milliseconds (UTC) for direct consumption by the JS frontend.
 """
 
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 import orbitarium
 
 _orbitarium = orbitarium.Orbitarium()
+
+# Fixed reference epoch for orbit-line geometry. Orbits precess negligibly
+# over a viewing session, so a single epoch yields stable closed loops.
+ORBIT_EPOCH = datetime(2026, 1, 1, tzinfo=timezone.utc)
 
 # Valid per-body sample counts: 2^k + 1 grids nest (each is a subset of the
 # next), plus the minimal 2-point window. 65 is the density ceiling.
@@ -97,3 +101,28 @@ def sample_window(start: datetime, end: datetime, periods: dict) -> dict:
         }
 
     return {"bodies": bodies}
+
+
+def orbit_loops(
+    periods: dict,
+    epoch: datetime = ORBIT_EPOCH,
+    points: int = 64,
+) -> dict:
+    """Closed parent-centric orbit loops, one full period per body.
+
+    periods maps body name -> orbital period in days. Returns {name:
+    {"parent": str, "points": [[x, y, z], ...]}} with `points` samples spanning
+    [epoch, epoch + period) (the loop closes back to the first point, so the
+    endpoint is intentionally excluded).
+    """
+    loops: dict = {}
+    for name, period in periods.items():
+        step = timedelta(days=period) / points
+        parent = None
+        pts: list = []
+        for i in range(points):
+            flat = _flatten(_orbitarium.get_positions(epoch + step * i))
+            parent, xyz = flat[name]
+            pts.append(xyz)
+        loops[name] = {"parent": parent, "points": pts}
+    return loops

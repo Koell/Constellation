@@ -20,6 +20,25 @@ export interface BodyTreeOptions {
   isVisible?: (name: string) => boolean;
   /** Called when the user toggles one moon or a whole moon group. */
   onToggle?: (names: string[], visible: boolean) => void;
+  /** Called when the user clicks a body name to focus it. */
+  onFocus?: (name: string) => void;
+}
+
+/** A clickable body name that focuses the body without toggling its row. */
+function nameLabel(
+  body: CatalogBody,
+  options: BodyTreeOptions,
+): HTMLElement | Text {
+  if (!options.onFocus) return document.createTextNode(body.display_name);
+  const span = document.createElement("span");
+  span.className = "body-name";
+  span.textContent = body.display_name;
+  span.addEventListener("click", (e) => {
+    e.stopPropagation(); // don't toggle the <details> when focusing
+    e.preventDefault();
+    options.onFocus!(body.name);
+  });
+  return span;
 }
 
 /** Collapsible Sun → planets → moons tree; moons carry visibility
@@ -46,7 +65,7 @@ function renderNode(
     if (body.type === "moon" && options.onToggle) {
       leaf.appendChild(moonCheckbox(body, options));
     }
-    leaf.appendChild(document.createTextNode(body.display_name));
+    leaf.appendChild(nameLabel(body, options));
     return leaf;
   }
 
@@ -65,7 +84,7 @@ function renderNode(
     groupBox.addEventListener("click", (e) => e.stopPropagation());
     summary.appendChild(groupBox);
   }
-  summary.appendChild(document.createTextNode(body.display_name));
+  summary.appendChild(nameLabel(body, options));
   details.appendChild(summary);
 
   const children = document.createElement("div");
