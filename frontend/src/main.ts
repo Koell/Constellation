@@ -1,8 +1,11 @@
 import * as THREE from "three";
 import { formatBackendStatus, type HealthPayload } from "./backendStatus";
+import { fetchCatalog } from "./catalog";
+import { renderBodyTree } from "./bodyTree";
 
 const container = document.getElementById("app")!;
 const statusEl = document.getElementById("status")!;
+const panelBody = document.getElementById("panel-body")!;
 
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(
@@ -51,4 +54,12 @@ fetch("/api/health")
   })
   .catch((err: unknown) => {
     statusEl.textContent = `backend unreachable (${String(err)})`;
+  });
+
+fetchCatalog()
+  .then((root) => {
+    panelBody.replaceChildren(renderBodyTree(root));
+  })
+  .catch((err: unknown) => {
+    panelBody.textContent = `catalog unavailable (${String(err)})`;
   });
