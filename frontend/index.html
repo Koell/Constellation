@@ -53,6 +53,14 @@
       .body-tree-leaf {
         padding: 1px 0 1px 13px;
       }
+      #view-options {
+        margin-bottom: 8px;
+        padding-bottom: 6px;
+        border-bottom: 1px solid #2a2e3c;
+      }
+      #view-options label {
+        cursor: pointer;
+      }
       #time-controls {
         position: fixed;
         bottom: 12px;
@@ -93,11 +101,66 @@
         font-variant-numeric: tabular-nums;
         min-width: 150px;
       }
+      #credits-btn {
+        position: fixed;
+        right: 12px;
+        bottom: 10px;
+        width: 26px;
+        height: 26px;
+        border-radius: 50%;
+        background: rgba(10, 12, 20, 0.85);
+        border: 1px solid #3a3f52;
+        color: #ddd;
+        font-size: 14px;
+        cursor: pointer;
+      }
+      #credits {
+        position: fixed;
+        inset: 0;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        background: rgba(0, 0, 0, 0.6);
+        z-index: 10;
+      }
+      #credits.open {
+        display: flex;
+      }
+      #credits .card {
+        background: #12141c;
+        border: 1px solid #2a2e3c;
+        border-radius: 10px;
+        padding: 20px 24px;
+        max-width: 460px;
+        line-height: 1.5;
+      }
+      #credits h2 {
+        margin: 0 0 10px;
+        font-size: 16px;
+      }
+      #credits a {
+        color: #6fb0e8;
+      }
+      #credits button {
+        margin-top: 14px;
+        background: #1c2030;
+        color: #ddd;
+        border: 1px solid #3a3f52;
+        border-radius: 6px;
+        padding: 5px 14px;
+        cursor: pointer;
+      }
     </style>
   </head>
   <body>
     <div id="app"></div>
-    <div id="panel"><h1>Constellation</h1><div id="panel-body">loading catalog…</div></div>
+    <div id="panel">
+      <h1>Constellation</h1>
+      <div id="view-options">
+        <label><input type="checkbox" id="toggle-stars" checked /> Stars</label>
+      </div>
+      <div id="panel-body">loading catalog…</div>
+    </div>
     <div id="time-controls">
       <button id="direction" title="playback direction">▶▶</button>
       <button id="play-pause" title="play/pause">⏸</button>
@@ -115,6 +178,22 @@
       <span id="sim-date">—</span>
     </div>
     <div id="status">connecting…</div>
+    <button id="credits-btn" title="credits &amp; licensing">ⓘ</button>
+    <div id="credits">
+      <div class="card">
+        <h2>Credits &amp; licensing</h2>
+        <p>
+          Positions computed by
+          <a href="https://pypi.org/project/orbitarium/" target="_blank" rel="noopener">orbitarium</a>.
+        </p>
+        <p>
+          Planet &amp; moon surface textures:
+          <a href="https://www.solarsystemscope.com/textures/" target="_blank" rel="noopener">Solar System Scope</a>,
+          licensed <strong>CC BY 4.0</strong>. Bodies without a texture are drawn as plain colored spheres.
+        </p>
+        <button id="credits-close">Close</button>
+      </div>
+    </div>
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>

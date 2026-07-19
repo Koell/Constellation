@@ -121,7 +121,7 @@
     "type": "moon",
     "radius_km": 1821.6,
     "color": "#E8D14C",
-    "texture": "textures/io.jpg",
+    "texture": null,
     "orbital_period_days": 1.775658,
     "default_visible": true
   },
@@ -130,7 +130,7 @@
     "type": "moon",
     "radius_km": 1560.8,
     "color": "#D8C9B4",
-    "texture": "textures/europa.jpg",
+    "texture": null,
     "orbital_period_days": 3.574391,
     "default_visible": true
   },
@@ -139,7 +139,7 @@
     "type": "moon",
     "radius_km": 2634.1,
     "color": "#9C8E7E",
-    "texture": "textures/ganymede.jpg",
+    "texture": null,
     "orbital_period_days": 7.155786,
     "default_visible": true
   },
@@ -148,7 +148,7 @@
     "type": "moon",
     "radius_km": 2410.3,
     "color": "#7A6F63",
-    "texture": "textures/callisto.jpg",
+    "texture": null,
     "orbital_period_days": 16.69049,
     "default_visible": true
   },
@@ -346,7 +346,7 @@
     "type": "moon",
     "radius_km": 2574.7,
     "color": "#E8A33D",
-    "texture": "textures/titan.jpg",
+    "texture": null,
     "orbital_period_days": 15.94644,
     "default_visible": true
   },
@@ -625,7 +625,7 @@
     "type": "moon",
     "radius_km": 1353.4,
     "color": "#D8C0B0",
-    "texture": "textures/triton.jpg",
+    "texture": null,
     "orbital_period_days": 5.876962,
     "default_visible": true
   },
@@ -643,7 +643,7 @@
     "type": "dwarf planet",
     "radius_km": 1188.3,
     "color": "#C9B29B",
-    "texture": "textures/pluto.jpg",
+    "texture": null,
     "orbital_period_days": 90560.0,
     "default_visible": true
   },
@@ -652,7 +652,7 @@
     "type": "moon",
     "radius_km": 606.0,
     "color": "#9A9491",
-    "texture": "textures/charon.jpg",
+    "texture": null,
     "orbital_period_days": 6.387222,
     "default_visible": true
   },

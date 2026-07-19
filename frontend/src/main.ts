@@ -3,7 +3,7 @@ import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { formatBackendStatus, type HealthPayload } from "./backendStatus";
 import { fetchCatalog, type CatalogBody } from "./catalog";
 import { flattenCatalog, renderBodyTree } from "./bodyTree";
-import { buildSolarSystem } from "./scene";
+import { buildSolarSystem, buildStarfield } from "./scene";
 import {
   bodyRadiusUnits,
   eclipticKmToScene,
@@ -25,6 +25,15 @@ const scrubInput = document.getElementById("scrub") as HTMLInputElement;
 const dateJumpInput = document.getElementById("date-jump") as HTMLInputElement;
 const nowBtn = document.getElementById("now-btn") as HTMLButtonElement;
 const simDateEl = document.getElementById("sim-date")!;
+const creditsBtn = document.getElementById("credits-btn") as HTMLButtonElement;
+const credits = document.getElementById("credits")!;
+const creditsClose = document.getElementById("credits-close") as HTMLButtonElement;
+
+creditsBtn.addEventListener("click", () => credits.classList.add("open"));
+creditsClose.addEventListener("click", () => credits.classList.remove("open"));
+credits.addEventListener("click", (e) => {
+  if (e.target === credits) credits.classList.remove("open");
+});
 
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(
@@ -33,7 +42,7 @@ const camera = new THREE.PerspectiveCamera(
   0.1,
   100_000,
 );
-camera.position.set(0, 2200, 4200);
+camera.position.set(0, 150, 380);
 camera.lookAt(0, 0, 0);
 
 const renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -44,10 +53,22 @@ container.appendChild(renderer.domElement);
 const controls = new OrbitControls(camera, renderer.domElement);
 controls.enableDamping = true;
 
-const sunlight = new THREE.PointLight(0xffffff, 4, 0, 0);
+// Sunlight from the origin, no distance falloff (decay 0) so far planets
+// stay lit; low ambient keeps night sides faintly visible.
+const sunlight = new THREE.PointLight(0xffffff, 3, 0, 0);
 sunlight.position.set(0, 0, 0);
 scene.add(sunlight);
-scene.add(new THREE.AmbientLight(0xffffff, 0.25));
+scene.add(new THREE.AmbientLight(0xffffff, 0.12));
+
+const starfield = buildStarfield();
+starfield.visible = false; // off by default — distracting; toggle in the panel
+scene.add(starfield);
+
+const toggleStars = document.getElementById("toggle-stars") as HTMLInputElement;
+toggleStars.checked = false;
+toggleStars.addEventListener("change", () => {
+  starfield.visible = toggleStars.checked;
+});
 
 window.addEventListener("resize", () => {
   camera.aspect = window.innerWidth / window.innerHeight;
@@ -198,6 +219,7 @@ async function boot() {
       }
     }
 
+    starfield.position.copy(camera.position);
     simDateEl.textContent = `${dateFormat.format(simMs)} UTC`;
     controls.update();
     renderer.render(scene, camera);
