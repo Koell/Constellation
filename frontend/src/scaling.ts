@@ -36,3 +36,37 @@ export function bodyRadiusUnits(radiusKm: number, isStar = false): number {
   const factor = isStar ? STAR_RADIUS_EXAGGERATION : RADIUS_EXAGGERATION;
   return Math.max(kmToUnits(radiusKm * factor), MIN_RADIUS_UNITS);
 }
+
+/** How far a moon orbit must clear its parent's rendered surface. */
+export const MOON_CLEARANCE = 2.0;
+
+/**
+ * Uniform boost for one planet's satellite system: scales all its moons'
+ * orbital radii so the innermost orbit clears the parent's exaggerated
+ * sphere by MOON_CLEARANCE. Uniform per parent → relative ordering of the
+ * moons is preserved. Never shrinks (min 1).
+ */
+export function moonOrbitBoost(
+  parentRenderedRadiusUnits: number,
+  innermostOrbitKm: number,
+  clearance = MOON_CLEARANCE,
+): number {
+  const innermostUnits = kmToUnits(innermostOrbitKm);
+  if (innermostUnits <= 0) return 1;
+  return Math.max(1, (parentRenderedRadiusUnits * clearance) / innermostUnits);
+}
+
+/** World position of a moon: parent's world position plus its boosted,
+ * axis-remapped parent-local offset. */
+export function moonWorldPosition(
+  parentWorld: Vec3,
+  localKm: Vec3,
+  boost: number,
+): Vec3 {
+  const [x, y, z] = eclipticKmToScene(localKm);
+  return [
+    parentWorld[0] + x * boost,
+    parentWorld[1] + y * boost,
+    parentWorld[2] + z * boost,
+  ];
+}

@@ -53,11 +53,67 @@
       .body-tree-leaf {
         padding: 1px 0 1px 13px;
       }
+      #time-controls {
+        position: fixed;
+        bottom: 12px;
+        left: 50%;
+        transform: translateX(-50%);
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        background: rgba(10, 12, 20, 0.85);
+        border: 1px solid #2a2e3c;
+        border-radius: 8px;
+        padding: 8px 14px;
+        font-size: 13px;
+      }
+      #time-controls button {
+        background: #1c2030;
+        color: #ddd;
+        border: 1px solid #3a3f52;
+        border-radius: 6px;
+        padding: 4px 12px;
+        font-size: 14px;
+        cursor: pointer;
+      }
+      #time-controls select,
+      #time-controls input[type="datetime-local"] {
+        background: #1c2030;
+        color: #ddd;
+        border: 1px solid #3a3f52;
+        border-radius: 6px;
+        padding: 4px 6px;
+        color-scheme: dark;
+      }
+      #time-controls input[type="range"] {
+        width: 140px;
+        accent-color: #4f94cd;
+      }
+      #sim-date {
+        font-variant-numeric: tabular-nums;
+        min-width: 150px;
+      }
     </style>
   </head>
   <body>
     <div id="app"></div>
     <div id="panel"><h1>Constellation</h1><div id="panel-body">loading catalog…</div></div>
+    <div id="time-controls">
+      <button id="direction" title="playback direction">▶▶</button>
+      <button id="play-pause" title="play/pause">⏸</button>
+      <select id="speed">
+        <option value="1">real time</option>
+        <option value="3600">1 hour/s</option>
+        <option value="86400" selected>1 day/s</option>
+        <option value="604800">1 week/s</option>
+        <option value="2629800">1 month/s</option>
+        <option value="31557600">1 year/s</option>
+      </select>
+      <input type="range" id="scrub" min="-1000" max="1000" value="0" title="scrub ±1 year" />
+      <input type="datetime-local" id="date-jump" title="jump to date" />
+      <button id="now-btn" title="back to the current moment">now</button>
+      <span id="sim-date">—</span>
+    </div>
     <div id="status">connecting…</div>
     <script type="module" src="/src/main.ts"></script>
   </body>

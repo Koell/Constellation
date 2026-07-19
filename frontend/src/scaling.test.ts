@@ -5,6 +5,9 @@ import {
   KM_PER_UNIT,
   kmToUnits,
   MIN_RADIUS_UNITS,
+  MOON_CLEARANCE,
+  moonOrbitBoost,
+  moonWorldPosition,
   RADIUS_EXAGGERATION,
   STAR_RADIUS_EXAGGERATION,
 } from "./scaling";
@@ -55,5 +58,44 @@ describe("bodyRadiusUnits", () => {
   it("clamp boundary: radius exactly at the minimum stays put", () => {
     const boundaryKm = (MIN_RADIUS_UNITS * KM_PER_UNIT) / RADIUS_EXAGGERATION;
     expect(bodyRadiusUnits(boundaryKm)).toBe(MIN_RADIUS_UNITS);
+  });
+});
+
+describe("moonOrbitBoost", () => {
+  // Jupiter: rendered radius 3.5 units; Metis orbits at 128,000 km (0.128 units).
+  const jupiterUnits = bodyRadiusUnits(69_911);
+  const metisOrbitKm = 128_000;
+
+  it("boosts the innermost orbit to clear the parent's rendered sphere", () => {
+    const boost = moonOrbitBoost(jupiterUnits, metisOrbitKm);
+    const boostedMetis = kmToUnits(metisOrbitKm) * boost;
+    expect(boostedMetis).toBeCloseTo(jupiterUnits * MOON_CLEARANCE, 6);
+    expect(boostedMetis).toBeGreaterThan(jupiterUnits);
+  });
+
+  it("preserves relative ordering of a planet's moons (uniform scaling)", () => {
+    const boost = moonOrbitBoost(jupiterUnits, metisOrbitKm);
+    const orbitsKm = [128_000, 421_700, 671_000, 1_070_400, 1_882_700];
+    const boosted = orbitsKm.map((r) => kmToUnits(r) * boost);
+    for (let i = 1; i < boosted.length; i++) {
+      expect(boosted[i]).toBeGreaterThan(boosted[i - 1]);
+    }
+    // ratios unchanged by a uniform boost
+    expect(boosted[1] / boosted[0]).toBeCloseTo(421_700 / 128_000, 6);
+  });
+
+  it("never shrinks an orbit that already clears the parent", () => {
+    // Luna at 384,400 km around Earth (rendered 0.4 units clamped):
+    // boost needed is ~2.08 for clearance 2; a huge orbit needs none.
+    expect(moonOrbitBoost(0.4, 10_000_000)).toBe(1);
+  });
+});
+
+describe("moonWorldPosition", () => {
+  it("composes parent world position with the boosted local offset", () => {
+    const parent: [number, number, number] = [100, 5, -20];
+    // local +z (ecliptic north) maps to scene +y
+    const world = moonWorldPosition(parent, [0, 0, 2_000_000], 3);
+    expect(world).toEqual([100, 5 + 6, -20]);
   });
 });
